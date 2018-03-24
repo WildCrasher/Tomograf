@@ -29,11 +29,12 @@ def runParallelModel(N_detectors_and_emiters, interval, step):
         detector_cords = []
         emiter_cords = []
         alfa = alfa + step
-    normalize_each_element(matrix, N_detectors_and_emiters)
+    #normalize_each_element(matrix, N_detectors_and_emiters)
 
     cv2.imshow("changed", image)
-    #cv2.waitKey(0)
-    #cv2.imshow("sinogram", np.array(matrix))
+    print(matrix)
+    cv2.waitKey(0)
+    cv2.imshow("sinogram", np.array(matrix))
 
 
 def count_emiters_and_detectors_position(emiter_cords, detector_cords, radius, interval_in_radians, alfa_in_radians, N_detectors_and_emiters, offset):
@@ -47,10 +48,12 @@ def count_emiters_and_detectors_position(emiter_cords, detector_cords, radius, i
 
 def new_row_in_matrix(emiter_cords, detector_cords, matrix, image, N_detectors_and_emiters):
     row = []
+    tab_of_counts = []
     for i in range(N_detectors_and_emiters):
         row.append([0, 0, 0])
 
     for i in range(N_detectors_and_emiters):
+        count = 0
         x1 = emiter_cords[i][0]
         x2 = detector_cords[N_detectors_and_emiters - 1 - i][0]
         y1 = emiter_cords[i][1]
@@ -72,11 +75,13 @@ def new_row_in_matrix(emiter_cords, detector_cords, matrix, image, N_detectors_a
             dy = y1 - y2
         #image[y_actual, x_actual] = [200, 100, 50]
         row[i] = increment_value_in_row(row[i], image[y_actual, x_actual])
+        count += 1
         if (dx > dy):
             a = (dy - dx) * 2
             b = dy * 2
             e = b - dx
             while( x_actual != x2):
+                count += 1
                 if (e >= 0):
                     x_actual += x_direction
                     y_actual += y_direction
@@ -92,6 +97,7 @@ def new_row_in_matrix(emiter_cords, detector_cords, matrix, image, N_detectors_a
             b = dx * 2
             e = b - dy
             while y_actual != y2:
+                count += 1
                 if (e >= 0):
                     x_actual += x_direction
                     y_actual += y_direction
@@ -101,6 +107,10 @@ def new_row_in_matrix(emiter_cords, detector_cords, matrix, image, N_detectors_a
                     y_actual += y_direction
                 row[i] = increment_value_in_row(row[i], image[y_actual, x_actual])
                 #image[y_actual, x_actual] = [200, 100, 50]
+        tab_of_counts.append(count)
+    #print(row)
+    make_average(row, tab_of_counts)
+    #print(row)
     matrix.append(row)
 
 #image cords in cv2 are swaped cv2image[y, x]
@@ -118,6 +128,17 @@ def increment_value_in_row( row, value ):
     lists_of_lists = [row, value]
     result = [sum(x) for x in zip(*lists_of_lists)]
     return result
+
+def make_average(row, count):
+    sums = 3
+    for r in range(len(row)):
+        for i in range(sums):
+          #  print("1")
+          #  print(row[r])
+            row[r][i] = int(round(row[r][i] / count[r]))
+         #   print("2")
+          #  print(row[r])
+            cv2.waitKey(0)
 
 def normalize_each_element( matrix, N_detectors_and_emiters ):
     normalize_value = 255
