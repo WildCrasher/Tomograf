@@ -2,11 +2,12 @@ import numpy as np
 import cv2
 import math
 import time
+from bresenham import bresenham
 
 # interval - angle between detectors
 # step - angle while model is moving on circle (alfa)
 
-imgOriginal = cv2.imread("Foto/Kolo.jpg")
+imgOriginal = cv2.imread("Foto/Kwadraty2.jpg")
 image_height, image_width, idontcare = imgOriginal.shape
 
 def runParallelModel(N_detectors_and_emiters, interval, step):
@@ -23,18 +24,18 @@ def runParallelModel(N_detectors_and_emiters, interval, step):
     for i in range(int(360/step)):
         alfa_in_radians = math.pi / (180 / alfa)
         count_emiters_and_detectors_position(emiter_cords, detector_cords, radius, interval_in_radians, alfa_in_radians, N_detectors_and_emiters, offset)
-        change_image(image, emiter_cords, [120, 120, 120])
-        change_image(image, detector_cords, [50, 100, 220])
+        #change_image(image, emiter_cords, [120, 120, 120])
+        #change_image(image, detector_cords, [50, 100, 220])
         new_row_in_matrix(emiter_cords, detector_cords, matrix, image, N_detectors_and_emiters)
         detector_cords = []
         emiter_cords = []
         alfa = alfa + step
-    #normalize_each_element(matrix, N_detectors_and_emiters)
+    normalize_each_element(matrix, N_detectors_and_emiters)
 
     cv2.imshow("changed", image)
-    print(matrix)
     cv2.waitKey(0)
     cv2.imshow("sinogram", np.array(matrix))
+    cv2.imwrite("sinogram.png",np.array(matrix))
 
 
 def count_emiters_and_detectors_position(emiter_cords, detector_cords, radius, interval_in_radians, alfa_in_radians, N_detectors_and_emiters, offset):
@@ -58,7 +59,14 @@ def new_row_in_matrix(emiter_cords, detector_cords, matrix, image, N_detectors_a
         x2 = detector_cords[N_detectors_and_emiters - 1 - i][0]
         y1 = emiter_cords[i][1]
         y2 = detector_cords[N_detectors_and_emiters - 1 - i][1]
-        x_actual = x1
+        
+        #----
+        bres = list(bresenham(x1,y1,x2,y2))
+        for point in bres:
+            row[i] = increment_value_in_row(row[i], image[point[0],point[1]])
+        #----
+
+        """x_actual = x1
         y_actual = y1
 
         if (x1 < x2):
@@ -107,9 +115,8 @@ def new_row_in_matrix(emiter_cords, detector_cords, matrix, image, N_detectors_a
                     y_actual += y_direction
                 row[i] = increment_value_in_row(row[i], image[y_actual, x_actual])
                 #image[y_actual, x_actual] = [200, 100, 50]
-        tab_of_counts.append(count)
-    #print(row)
-    make_average(row, tab_of_counts)
+        tab_of_counts.append(count)"""
+    
     #print(row)
     matrix.append(row)
 
@@ -124,10 +131,15 @@ def calculateRadius():
     else:
         return round(image_height) / 2
 
-def increment_value_in_row( row, value ):
+"""def increment_value_in_row( row, value ):
     lists_of_lists = [row, value]
     result = [sum(x) for x in zip(*lists_of_lists)]
-    return result
+    return result"""
+
+def increment_value_in_row( row, value ):
+    for i in range(3):
+        row[i] += value[i]
+    return row
 
 def make_average(row, count):
     sums = 3
@@ -140,18 +152,30 @@ def make_average(row, count):
           #  print(row[r])
             cv2.waitKey(0)
 
+def maxColors(matrix):
+    maxValues=[0,0,0]
+    for row in matrix:
+        for color in range(3):
+            tempRow = [el[color] for el in row]
+            temp = max(tempRow)
+            if temp>maxValues[color]:
+                maxValues[color]=temp
+    return maxValues
+
 def normalize_each_element( matrix, N_detectors_and_emiters ):
+    #print(matrix)
+    maxValues=maxColors(matrix)
     normalize_value = 255
     rgb = 3
-    for x in range(len(matrix)):
-        for y in range(N_detectors_and_emiters):
-            for z in range(rgb):
-                matrix[x][y][z] = int(round(matrix[x][y][z]/ normalize_value))
+    for row in matrix:
+        for i in range(len(row)):
+            for color in range(rgb):
+                row[i][color] = int(round(row[i][color]*normalize_value/maxValues[color]))
     return matrix
 
 
 
 #N_detectors_and_emiters, interval, step
-runParallelModel(5, 10, 2)
+runParallelModel(100, 20, 2)
 
 cv2.waitKey(0)
