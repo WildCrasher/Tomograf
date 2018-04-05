@@ -7,7 +7,7 @@ from bresenham import bresenham
 # interval - angle between detectors
 # step - angle while model is moving on circle (alfa)
 
-imgOriginal = cv2.imread("Foto/Kolo.jpg")
+imgOriginal = cv2.imread("Foto/Kwadraty2.jpg")
 image_height, image_width, idontcare = imgOriginal.shape
 
 def runParallelModel(N_detectors_and_emiters, interval, step):
@@ -15,24 +15,24 @@ def runParallelModel(N_detectors_and_emiters, interval, step):
     radius = calculateRadius() - 1
     offset = round(radius)
     alfa = 90  # 1
-    interval_in_radians = math.pi / (180 / interval)
+    interval_in_radians = math.radians(interval)
     detector_cords = []
     emiter_cords = []
     matrix = []
-    newImage = image
+    newImage = []
 
     #for i in range(4):
     #(int(360/step))
     for i in range(int(360/step)):
-        alfa_in_radians = math.pi / (180 / alfa)
-        count_emiters_and_detectors_position(emiter_cords, detector_cords, radius, interval_in_radians, alfa_in_radians, N_detectors_and_emiters, offset)
+        alfa_in_radians = math.radians(alfa)
+        count_emiters_and_detectors_position(emiter_cords, detector_cords, radius, interval, alfa_in_radians, N_detectors_and_emiters, offset)
         #change_image(image, emiter_cords, [120, 120, 120])
         #change_image(image, detector_cords, [50, 100, 220])
         new_row_in_matrix(emiter_cords, detector_cords, matrix, image, N_detectors_and_emiters)
         detector_cords = []
         emiter_cords = []
         alfa = alfa + step
-    normalize_each_element(matrix, N_detectors_and_emiters)
+    normalize_each_element(matrix)
 
     cv2.imshow("changed", image)
     cv2.waitKey(0)
@@ -40,25 +40,29 @@ def runParallelModel(N_detectors_and_emiters, interval, step):
     cv2.imwrite("sinogram.png",np.array(matrix))
 
     for x in range(image_width):
+        lista = []
         for y in range(image_height):
-            newImage[y][x] = [0, 0, 0]
+            lista.append([0,0,0])
+        newImage.append(lista)
+    print(newImage[0])
 
     detector_cords = []
     emiter_cords = []
     alfa = 90
     for i in range(int(360/step)):
         alfa_in_radians = math.pi / (180 / alfa)
-        count_emiters_and_detectors_position(emiter_cords, detector_cords, radius, interval_in_radians, alfa_in_radians, N_detectors_and_emiters, offset)
+        count_emiters_and_detectors_position(emiter_cords, detector_cords, radius, interval, alfa_in_radians, N_detectors_and_emiters, offset)
         #change_image(image, emiter_cords, [120, 120, 120])
         #change_image(image, detector_cords, [50, 100, 220])
         reconstruct(emiter_cords, detector_cords, matrix[i], newImage, N_detectors_and_emiters)
         detector_cords = []
         emiter_cords = []
         alfa = alfa + step
-
+        print(i)
     # filter do odszumienia potrzebny
     # potem convolve czyli splot, tylko nie wiem czy sinogramu z filtrem czy juz odtworzonego obrazu z filtrem
-    filter = get_filter(N_detectors_and_emiters)
+    #filter = get_filter(N_detectors_and_emiters)
+    normalize_each_element(newImage)
     cv2.imshow("reconstructed", np.array(newImage))
     cv2.imwrite("reconstructed.png",np.array(newImage))
     cv2.waitKey(0)
@@ -105,6 +109,10 @@ def reconstruct(emiter_cords, detector_cords, row, newImage, N_detectors_and_emi
             y_direction = -1
             dy = y1 - y2
         # image[y_actual, x_actual] = [200, 100, 50]
+        """value = [10,10,10]
+        if newImage[y_actual][x_actual][0] < row[i][0]:
+            value = [-x for x in value]
+        newImage[y_actual][x_actual] = increment_value_in_row(newImage[y_actual][x_actual], value)"""
         newImage[y_actual][x_actual] = increment_value_in_row(newImage[y_actual][x_actual], row[i])
         count += 1
         if (dx > dy):
@@ -120,8 +128,8 @@ def reconstruct(emiter_cords, detector_cords, row, newImage, N_detectors_and_emi
                 else:
                     e += b
                     x_actual += x_direction
-                    newImage[y_actual][x_actual] = increment_value_in_row(newImage[y_actual][x_actual], row[i])
                 # image[y_actual, x_actual] = [200, 100, 50]
+                newImage[y_actual][x_actual] = increment_value_in_row(newImage[y_actual][x_actual], row[i])
 
         else:
             a = (dx - dy) * 2
@@ -176,7 +184,7 @@ def new_row_in_matrix(emiter_cords, detector_cords, matrix, image, N_detectors_a
         else:
             y_direction = -1
             dy = y1 - y2
-        #image[y_actual, x_actual] = [200, 100, 50]
+        # image[y_actual, x_actual] = [200, 100, 50]
         row[i] = increment_value_in_row(row[i], image[y_actual, x_actual])
         count += 1
         if (dx > dy):
@@ -193,7 +201,7 @@ def new_row_in_matrix(emiter_cords, detector_cords, matrix, image, N_detectors_a
                     e += b
                     x_actual += x_direction
                 row[i] = increment_value_in_row(row[i], image[y_actual, x_actual])
-                #image[y_actual, x_actual] = [200, 100, 50]
+                # image[y_actual, x_actual] = [200, 100, 50]
 
         else:
             a = (dx - dy) * 2
@@ -209,7 +217,7 @@ def new_row_in_matrix(emiter_cords, detector_cords, matrix, image, N_detectors_a
                     e += b
                     y_actual += y_direction
                 row[i] = increment_value_in_row(row[i], image[y_actual, x_actual])
-                #image[y_actual, x_actual] = [200, 100, 50]
+                # image[y_actual, x_actual] = [200, 100, 50]
         #tab_of_counts.append(count)
     #make_average(row, tab_of_counts)
 
@@ -242,7 +250,7 @@ def make_average(row, count):
     for r in range(len(row)):
         for i in range(sums):
           #  print("1")
-          #  print(row[r])
+          #  print(row  [r])
             row[r][i] = int(round(row[r][i] / count[r]))
          #   print("2")
           #  print(row[r])
@@ -258,7 +266,7 @@ def maxColors(matrix):
                 maxValues[color]=temp
     return maxValues
 
-def normalize_each_element( matrix, N_detectors_and_emiters ):
+def normalize_each_element( matrix ):
     #print(matrix)
     maxValues=maxColors(matrix)
     normalize_value = 255
@@ -282,6 +290,6 @@ def get_filter(N_detectors_and_emiters):
 
 
 #N_detectors_and_emiters, interval, step
-runParallelModel(100, 20, 2)
+runParallelModel(100, 2, 1)
 
 cv2.waitKey(0)
