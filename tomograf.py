@@ -7,7 +7,7 @@ from bresenham import bresenham
 # interval - angle between detectors
 # step - angle while model is moving on circle (alfa)
 
-imgOriginal = cv2.imread("Foto/Kwadraty2.jpg")
+imgOriginal = cv2.imread("Foto/Kolo.jpg")
 image_height, image_width, idontcare = imgOriginal.shape
 
 def runParallelModel(N_detectors_and_emiters, interval, step):
@@ -19,6 +19,8 @@ def runParallelModel(N_detectors_and_emiters, interval, step):
     detector_cords = []
     emiter_cords = []
     matrix = []
+    newImage = image
+
     #for i in range(4):
     #(int(360/step))
     for i in range(int(360/step)):
@@ -37,6 +39,31 @@ def runParallelModel(N_detectors_and_emiters, interval, step):
     cv2.imshow("sinogram", np.array(matrix))
     cv2.imwrite("sinogram.png",np.array(matrix))
 
+    for x in range(image_width):
+        for y in range(image_height):
+            newImage[y][x] = [0, 0, 0]
+
+    detector_cords = []
+    emiter_cords = []
+    alfa = 90
+    for i in range(int(360/step)):
+        alfa_in_radians = math.pi / (180 / alfa)
+        count_emiters_and_detectors_position(emiter_cords, detector_cords, radius, interval_in_radians, alfa_in_radians, N_detectors_and_emiters, offset)
+        #change_image(image, emiter_cords, [120, 120, 120])
+        #change_image(image, detector_cords, [50, 100, 220])
+        reconstruct(emiter_cords, detector_cords, matrix[i], newImage, N_detectors_and_emiters)
+        detector_cords = []
+        emiter_cords = []
+        alfa = alfa + step
+
+    # filter do odszumienia potrzebny
+    # potem convolve czyli splot, tylko nie wiem czy sinogramu z filtrem czy juz odtworzonego obrazu z filtrem
+    filter = get_filter(N_detectors_and_emiters)
+    cv2.imshow("reconstructed", np.array(newImage))
+    cv2.imwrite("reconstructed.png",np.array(newImage))
+    cv2.waitKey(0)
+
+
 
 def count_emiters_and_detectors_position(emiter_cords, detector_cords, radius, interval_in_radians, alfa_in_radians, N_detectors_and_emiters, offset):
     for i in range(N_detectors_and_emiters):
@@ -46,6 +73,73 @@ def count_emiters_and_detectors_position(emiter_cords, detector_cords, radius, i
         yDetector = round(radius * math.sin(alfa_in_radians - interval_in_radians / 2 + i * (interval_in_radians / (N_detectors_and_emiters - 1)))) + offset
         emiter_cords.append([xEmiter, yEmiter])
         detector_cords.append([xDetector, yDetector])
+
+def reconstruct(emiter_cords, detector_cords, row, newImage, N_detectors_and_emiters):
+    for i in range(N_detectors_and_emiters):
+        count = 0
+        x1 = emiter_cords[i][0]
+        x2 = detector_cords[N_detectors_and_emiters - 1 - i][0]
+        y1 = emiter_cords[i][1]
+        y2 = detector_cords[N_detectors_and_emiters - 1 - i][1]
+
+        '''---
+        bres = list(bresenham(x1,y1,x2,y2))
+        for point in bres:
+            row[i] = increment_value_in_row(row[i], image[point[0],point[1]])
+
+        '''
+
+        x_actual = x1
+        y_actual = y1
+
+        if (x1 < x2):
+            x_direction = 1
+            dx = x2 - x1
+        else:
+            x_direction = -1
+            dx = x1 - x2
+        if (y1 < y2):
+            y_direction = 1
+            dy = y2 - y1
+        else:
+            y_direction = -1
+            dy = y1 - y2
+        # image[y_actual, x_actual] = [200, 100, 50]
+        newImage[y_actual][x_actual] = increment_value_in_row(newImage[y_actual][x_actual], row[i])
+        count += 1
+        if (dx > dy):
+            a = (dy - dx) * 2
+            b = dy * 2
+            e = b - dx
+            while (x_actual != x2):
+                count += 1
+                if (e >= 0):
+                    x_actual += x_direction
+                    y_actual += y_direction
+                    e += a
+                else:
+                    e += b
+                    x_actual += x_direction
+                    newImage[y_actual][x_actual] = increment_value_in_row(newImage[y_actual][x_actual], row[i])
+                # image[y_actual, x_actual] = [200, 100, 50]
+
+        else:
+            a = (dx - dy) * 2
+            b = dx * 2
+            e = b - dy
+            while y_actual != y2:
+                count += 1
+                if (e >= 0):
+                    x_actual += x_direction
+                    y_actual += y_direction
+                    e += a
+                else:
+                    e += b
+                    y_actual += y_direction
+                newImage[y_actual][x_actual] = increment_value_in_row(newImage[y_actual][x_actual], row[i])
+                # image[y_actual, x_actual] = [200, 100, 50]
+                # tab_of_counts.append(count)
+                # make_average(row, tab_of_counts)
 
 def new_row_in_matrix(emiter_cords, detector_cords, matrix, image, N_detectors_and_emiters):
     row = []
@@ -59,14 +153,15 @@ def new_row_in_matrix(emiter_cords, detector_cords, matrix, image, N_detectors_a
         x2 = detector_cords[N_detectors_and_emiters - 1 - i][0]
         y1 = emiter_cords[i][1]
         y2 = detector_cords[N_detectors_and_emiters - 1 - i][1]
-        
-        #----
+
+        '''---
         bres = list(bresenham(x1,y1,x2,y2))
         for point in bres:
             row[i] = increment_value_in_row(row[i], image[point[0],point[1]])
-        #----
+        
+        '''
 
-        """x_actual = x1
+        x_actual = x1
         y_actual = y1
 
         if (x1 < x2):
@@ -115,8 +210,9 @@ def new_row_in_matrix(emiter_cords, detector_cords, matrix, image, N_detectors_a
                     y_actual += y_direction
                 row[i] = increment_value_in_row(row[i], image[y_actual, x_actual])
                 #image[y_actual, x_actual] = [200, 100, 50]
-        tab_of_counts.append(count)"""
-    
+        #tab_of_counts.append(count)
+    #make_average(row, tab_of_counts)
+
     #print(row)
     matrix.append(row)
 
@@ -173,6 +269,16 @@ def normalize_each_element( matrix, N_detectors_and_emiters ):
                 row[i][color] = int(round(row[i][color]*normalize_value/maxValues[color]))
     return matrix
 
+def get_filter(N_detectors_and_emiters):
+    filter = []
+    for i in range(N_detectors_and_emiters):
+        if i == 0:
+            filter.append(1)
+        elif i % 2 == 0:
+            filter.append(0)
+        else:
+            filter.append((-4 / (np.pi ** 2)) / (i ** 2))
+    return filter
 
 
 #N_detectors_and_emiters, interval, step
